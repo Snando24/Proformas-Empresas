@@ -18,17 +18,23 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.utils import ImageReader, simpleSplit
 from reportlab.pdfgen import canvas
 
+from .company_config import CompanyConfig
+
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
+CONFIG_DIR = ROOT_DIR / "configs" / "companies"
 OUTPUT_PDF_DIR = ROOT_DIR / "output" / "pdf"
 OUTPUT_DOCX_DIR = ROOT_DIR / "output" / "docx"
-HEADER_IMAGES = {
-    "pintura": ROOT_DIR / "static" / "assets" / "header_corporate_pintura_v2.png",
-    "generales": ROOT_DIR / "static" / "assets" / "header_corporate_generales_v2.png",
+STATIC_ASSETS_DIR = ROOT_DIR / "static" / "assets"
+
+# Legacy header/watermark paths for backward compatibility (stored for companies that use named types)
+LEGACY_HEADER_IMAGES = {
+    "pintura": STATIC_ASSETS_DIR / "header_corporate_pintura_v2.png",
+    "generales": STATIC_ASSETS_DIR / "header_corporate_generales_v2.png",
 }
-WATERMARK_IMAGES = {
-    "proforma": ROOT_DIR / "static" / "assets" / "watermark_corporate.png",
-    "pintura": ROOT_DIR / "static" / "assets" / "watermark_corporate_paint.png",
+LEGACY_WATERMARK_IMAGES = {
+    "proforma": STATIC_ASSETS_DIR / "watermark_corporate.png",
+    "pintura": STATIC_ASSETS_DIR / "watermark_corporate_paint.png",
 }
 WATERMARK_LAYOUTS = {
     "proforma": {"width": 250, "bottom": 150, "opacity": 0.065},
@@ -53,14 +59,7 @@ DOCX_STYLE_TOKENS = {
     "table_width_inches": 6.5,
 }
 
-DEFAULT_PAYMENT_BCP_ACCOUNT = "0011-0202-0100061544"
-DEFAULT_PAYMENT_BCP_CCI = "MULTISERVICIOS Y REPRESENTACIONES J & C E.I.R.L."
-DEFAULT_PAYMENT_DETRACCIONES_ACCOUNT = ""
-PAYMENT_BANK_LABEL = "Cuenta en Soles BBVA"
-OFFER_NOTE_PRIMARY = "Validez de la oferta: 10 dias"
-OFFER_NOTE_SECONDARY = "Montos incluye instalacion"
-WORKSHOP_ADDRESS = "Planta de Trabajo: Jr. Tarapaca S/N, Pilcomayo - Huancayo"
-FISCAL_ADDRESS = "Domicilio: Jr. Tarapaca S/N, Pilcomayo - Huancayo"
+DEFAULT_COMPANY_ID = "jc-services"
 
 
 def normalize_money(value: Any) -> Decimal:
@@ -238,12 +237,19 @@ class ProformaData:
     items: list[LineItem]
     advance_payments: list[AdvancePayment]
     show_payment_details: bool
-    payment_bcp_account: str
-    payment_bcp_cci: str
-    payment_detracciones_account: str
+    company_config: CompanyConfig
 
     @classmethod
     def from_payload(cls, payload: dict[str, Any]) -> "ProformaData":
+        # Load company configuration
+        company_id = str(payload.get("company_id", DEFAULT_COMPANY_ID)).strip().lower()
+        config_path = CONFIG_DIR / f"{company_id}.json"
+        
+        try:
+            company_config = CompanyConfig.from_json_file(config_path)
+        except FileNotFoundError:
+            raise ValueError(f"Configuración de empresa no encontrada: {company_id}")
+        
         items: list[LineItem] = []
         for row in payload.get("items", []):
             description = str(row.get("description", "")).strip()
@@ -290,9 +296,9 @@ class ProformaData:
 
         if document_kind not in {"proforma", "contrato"}:
             raise ValueError("El tipo de documento debe ser proforma o contrato.")
-        if header_kind not in HEADER_IMAGES:
+        if header_kind not in LEGACY_HEADER_IMAGES:
             raise ValueError("El encabezado debe ser pintura o generales.")
-        if watermark_kind not in WATERMARK_IMAGES:
+        if watermark_kind not in LEGACY_WATERMARK_IMAGES:
             raise ValueError("La marca de agua debe ser proforma o pintura.")
 
         return cls(
@@ -308,13 +314,7 @@ class ProformaData:
             items=items,
             advance_payments=advance_payments,
             show_payment_details=normalize_bool(payload.get("show_payment_details")),
-            payment_bcp_account=str(
-                payload.get("payment_bcp_account", DEFAULT_PAYMENT_BCP_ACCOUNT)
-            ).strip(),
-            payment_bcp_cci=str(payload.get("payment_bcp_cci", DEFAULT_PAYMENT_BCP_CCI)).strip(),
-            payment_detracciones_account=str(
-                payload.get("payment_detracciones_account", DEFAULT_PAYMENT_DETRACCIONES_ACCOUNT)
-            ).strip(),
+            company_config=company_config,
         )
 
     @property
@@ -334,9 +334,9 @@ class ProformaData:
     @property
     def payment_rows(self) -> list[tuple[str, str]]:
         return [
-            ("Banco BCP", self.payment_bcp_account),
-            ("CCI", self.payment_bcp_cci),
-            ("Banco de la Nación", self.payment_detracciones_account),
+            ("Banco BCP", self.company_config.payment_bcp_account),
+            ("CCI", self.company_config.payment_bcp_cci),
+            ("Banco de la Nación", self.company_config.payment_detracciones_account),
         ]
 
 
@@ -345,28 +345,24 @@ def ensure_output_dirs() -> None:
     OUTPUT_DOCX_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def ensure_reference_template() -> None:
-    return None
-
-
 def ensure_header_image() -> None:
-    for header_path in HEADER_IMAGES.values():
+    for header_path in LEGACY_HEADER_IMAGES.values():
         if not header_path.exists():
             raise FileNotFoundError(f"No se encontro el encabezado derivado: {header_path.name}")
 
 
 def ensure_watermark_image() -> None:
-    for watermark_path in WATERMARK_IMAGES.values():
+    for watermark_path in LEGACY_WATERMARK_IMAGES.values():
         if not watermark_path.exists():
             raise FileNotFoundError(f"No se encontro la marca de agua: {watermark_path.name}")
 
 
 def get_watermark_image_path(watermark_kind: str) -> Path:
-    return WATERMARK_IMAGES.get(watermark_kind, WATERMARK_IMAGES["proforma"])
+    return LEGACY_WATERMARK_IMAGES.get(watermark_kind, LEGACY_WATERMARK_IMAGES["proforma"])
 
 
 def get_header_image_path(header_kind: str) -> Path:
-    return HEADER_IMAGES.get(header_kind, HEADER_IMAGES["generales"])
+    return LEGACY_HEADER_IMAGES.get(header_kind, LEGACY_HEADER_IMAGES["generales"])
 
 
 def get_watermark_layout(watermark_kind: str) -> dict[str, float]:
@@ -440,9 +436,9 @@ def draw_pdf_payment_footer(pdf: canvas.Canvas, data: ProformaData) -> None:
     pdf.drawString(divider_x + 12, content_top - 14, "Cuenta de Detracciones")
 
     pdf.setFillColorRGB(0.09, 0.07, 0.06)
-    pdf.drawRightString(divider_x - 14, content_top - 14, data.payment_bcp_account or "-")
-    pdf.drawRightString(divider_x - 14, content_top - 27, data.payment_bcp_cci or "-")
-    pdf.drawRightString(payment_x + payment_width - 14, content_top - 27, data.payment_detracciones_account or "-")
+    pdf.drawRightString(divider_x - 14, content_top - 14, data.company_config.payment_bcp_account or "-")
+    pdf.drawRightString(divider_x - 14, content_top - 27, data.company_config.payment_bcp_cci or "-")
+    pdf.drawRightString(payment_x + payment_width - 14, content_top - 27, data.company_config.payment_detracciones_account or "-")
     pdf.restoreState()
 
 
@@ -486,139 +482,6 @@ def set_cell_width(cell, width_inches: float) -> None:
 
 def build_pdf(data: ProformaData) -> Path:
     ensure_output_dirs()
-    ensure_reference_template()
-    ensure_header_image()
-    ensure_watermark_image()
-
-    output_path = OUTPUT_PDF_DIR / f"{data.filename_stem}.pdf"
-    pdf = canvas.Canvas(str(output_path), pagesize=letter)
-    pdf.setTitle(f"{data.document_kind.title()} - {data.customer_name or 'Cliente'}")
-
-    header_reader = ImageReader(str(get_header_image_path(data.header_kind)))
-    watermark_reader = ImageReader(str(get_watermark_image_path(data.watermark_kind)))
-    header_width, header_height = header_reader.getSize()
-    rendered_header_height = min(140, LETTER_WIDTH * (header_height / header_width))
-    pdf.drawImage(
-        header_reader,
-        0,
-        LETTER_HEIGHT - rendered_header_height,
-        width=LETTER_WIDTH,
-        height=rendered_header_height,
-        preserveAspectRatio=True,
-        mask="auto",
-    )
-    draw_pdf_watermark(pdf, watermark_reader, data.watermark_kind)
-
-    left_box_x = 52
-    left_box_y = 402
-    left_box_width = 300
-    left_box_height = 126
-    pdf.rect(left_box_x, left_box_y, left_box_width, left_box_height, stroke=1, fill=0)
-
-    pdf.setFont("Helvetica-Bold", 18)
-    pdf.drawString(60, 502, "Señor(a):")
-    pdf.setFont("Helvetica", 18)
-    pdf.drawString(145, 502, data.customer_name)
-
-    pdf.setFont("Helvetica-Bold", 15)
-    pdf.drawString(60, 470, "Teléfono:")
-    pdf.setFont("Helvetica", 15)
-    pdf.drawString(145, 470, data.phone)
-
-    pdf.setFont("Helvetica-Bold", 15)
-    pdf.drawString(60, 438, "RUC:")
-    pdf.setFont("Helvetica", 15)
-    pdf.drawString(110, 438, data.ruc)
-
-    pdf.setFont("Helvetica-Bold", 18)
-    pdf.drawString(60, 406, "Fecha:")
-    pdf.setFont("Helvetica", 18)
-    pdf.drawString(130, 406, data.display_date)
-
-    pdf.setFont("Helvetica-Bold", 17)
-    pdf.drawString(385, 500, "PROFORMA:")
-    pdf.drawString(385, 468, "CONTRATO:")
-
-    for index, label in enumerate(("proforma", "contrato")):
-        box_y = 495 - (index * 32)
-        pdf.roundRect(507, box_y, 24, 24, 5, stroke=1, fill=0)
-        if label == data.document_kind:
-            pdf.setLineWidth(2.8)
-            pdf.line(511, box_y + 4, 527, box_y + 20)
-            pdf.line(511, box_y + 20, 527, box_y + 4)
-            pdf.setLineWidth(1)
-
-    pdf.setFont("Helvetica-Bold", 12)
-    pdf.drawString(82, 356, "DESCRIPCION:")
-    pdf.setFont("Helvetica", 12)
-    summary_lines = simpleSplit(data.summary, "Helvetica", 12, 420) if data.summary else []
-    summary_y = 356
-    for line in summary_lines:
-        pdf.drawString(180, summary_y, line)
-        summary_y -= 15
-
-    pdf.setFont("Helvetica-Bold", 18)
-    pdf.drawCentredString(275, 292, "DESCRIPCION")
-    pdf.drawCentredString(500, 292, "TOTAL")
-
-    current_y = 254
-    item_line_height = 14 if data.show_payment_details else 18
-    item_gap = 5 if data.show_payment_details else 10
-    bottom_reserve = 126 if data.show_payment_details else 150
-    pdf.setFont("Helvetica", 12)
-    for item in data.items:
-        wrapped = simpleSplit(item.description, "Helvetica", 12, 320) if item.description else [""]
-        if current_y < bottom_reserve:
-            pdf.showPage()
-            draw_pdf_watermark(pdf, watermark_reader, data.watermark_kind)
-            pdf.setFont("Helvetica-Bold", 18)
-            pdf.drawCentredString(275, 742, "DESCRIPCION")
-            pdf.drawCentredString(500, 742, "TOTAL")
-            pdf.setFont("Helvetica", 12)
-            current_y = 704
-
-        for line_index, line in enumerate(wrapped):
-            pdf.drawString(90, current_y, line or " ")
-            if line_index == 0 and item.show_amount:
-                pdf.drawRightString(545, current_y, format_money(item.amount))
-            current_y -= item_line_height
-        current_y -= item_gap
-
-    advance_lines = [entry.display_line for entry in data.advance_payments if entry.display_line]
-    if advance_lines:
-        if current_y > (188 if data.show_payment_details else 180):
-            current_y = 160 if data.show_payment_details else 150
-        for line in advance_lines:
-            if current_y < (118 if data.show_payment_details else bottom_reserve):
-                pdf.showPage()
-                draw_pdf_watermark(pdf, watermark_reader, data.watermark_kind)
-                current_y = 704
-            pdf.drawString(90, current_y, line)
-            current_y -= 18 if data.show_payment_details else 24
-
-    if data.show_payment_details:
-        total_y = 124 if current_y > 138 else max(current_y - 4, 108)
-        if total_y < 108:
-            pdf.showPage()
-            draw_pdf_watermark(pdf, watermark_reader, data.watermark_kind)
-            total_y = 124
-        pdf.setFont("Helvetica-Bold", 14)
-        pdf.drawString(365, total_y, get_total_label(data.tax_mode))
-        pdf.drawRightString(545, total_y, format_money(data.total))
-        draw_pdf_payment_footer(pdf, data)
-    else:
-        total_y = 98 if current_y > 120 else max(current_y - 20, 60)
-        pdf.setFont("Helvetica-Bold", 14)
-        pdf.drawString(365, total_y, get_total_label(data.tax_mode))
-        pdf.drawRightString(545, total_y, format_money(data.total))
-
-    pdf.save()
-    return output_path
-
-
-def build_pdf(data: ProformaData) -> Path:
-    ensure_output_dirs()
-    ensure_reference_template()
     ensure_header_image()
     ensure_watermark_image()
 
@@ -745,8 +608,8 @@ def build_pdf(data: ProformaData) -> Path:
         pdf.drawString(46, notes_y + notes_height - 14, "OBSERVACIONES")
         pdf.setFont("Helvetica", 8.8)
         pdf.setFillColorRGB(39 / 255, 67 / 255, 99 / 255)
-        pdf.drawString(46, notes_y + notes_height - 34, OFFER_NOTE_PRIMARY)
-        pdf.drawString(46, notes_y + notes_height - 49, OFFER_NOTE_SECONDARY)
+        pdf.drawString(46, notes_y + notes_height - 34, data.company_config.offer_note_primary)
+        pdf.drawString(46, notes_y + notes_height - 49, data.company_config.offer_note_secondary)
 
         pdf.setStrokeColorRGB(90 / 255, 121 / 255, 164 / 255)
         pdf.rect(totals_x, notes_y, totals_width, row_height * 3, stroke=1, fill=0)
@@ -769,7 +632,7 @@ def build_pdf(data: ProformaData) -> Path:
         pdf.drawRightString(totals_x + totals_width, notes_y - 8, tax_breakdown["total_note"])
 
         if data.show_payment_details:
-            payment_line = f"{PAYMENT_BANK_LABEL}: {data.payment_bcp_account or '-'} | {data.payment_bcp_cci or '-'}"
+            payment_line = f"{data.company_config.payment_bank_label}: {data.company_config.payment_bcp_account or '-'} | {data.company_config.payment_bcp_cci or '-'}"
             payment_lines = simpleSplit(payment_line, "Helvetica", 6.8, LETTER_WIDTH - 68)
             payment_y = 50 + ((len(payment_lines) - 1) * 7)
             pdf.setFont("Helvetica", 6.8)
@@ -780,8 +643,8 @@ def build_pdf(data: ProformaData) -> Path:
 
         pdf.setFont("Helvetica-Bold", 8.5)
         pdf.setFillColorRGB(47 / 255, 70 / 255, 103 / 255)
-        pdf.drawCentredString(LETTER_WIDTH / 2, 20, WORKSHOP_ADDRESS)
-        pdf.drawCentredString(LETTER_WIDTH / 2, 8, FISCAL_ADDRESS)
+        pdf.drawCentredString(LETTER_WIDTH / 2, 20, data.company_config.workshop_address)
+        pdf.drawCentredString(LETTER_WIDTH / 2, 8, data.company_config.fiscal_address)
 
     top_cursor = rendered_header_height + 18
     pdf.setFont("Helvetica-Bold", 9.5)
@@ -854,7 +717,6 @@ def build_pdf(data: ProformaData) -> Path:
 
 def build_docx(data: ProformaData) -> Path:
     ensure_output_dirs()
-    ensure_reference_template()
     ensure_header_image()
 
     output_path = OUTPUT_DOCX_DIR / f"{data.filename_stem}.docx"
@@ -1023,14 +885,14 @@ def build_docx(data: ProformaData) -> Path:
         bcp_account.paragraph_format.space_after = Pt(4)
         bcp_account_label = bcp_account.add_run("Cuenta: ")
         set_run_font(bcp_account_label, "Calibri", Pt(11), bold=True)
-        bcp_account_value = bcp_account.add_run(data.payment_bcp_account or "-")
+        bcp_account_value = bcp_account.add_run(data.company_config.payment_bcp_account or "-")
         set_run_font(bcp_account_value, "Calibri", Pt(11), bold=False)
 
         bcp_cci = payment_cell.add_paragraph()
         bcp_cci.paragraph_format.space_after = Pt(6)
         bcp_cci_label = bcp_cci.add_run("CCI: ")
         set_run_font(bcp_cci_label, "Calibri", Pt(11), bold=True)
-        bcp_cci_value = bcp_cci.add_run(data.payment_bcp_cci or "-")
+        bcp_cci_value = bcp_cci.add_run(data.company_config.payment_bcp_cci or "-")
         set_run_font(bcp_cci_value, "Calibri", Pt(11), bold=False)
 
         nation_title = payment_cell.add_paragraph()
@@ -1044,7 +906,7 @@ def build_docx(data: ProformaData) -> Path:
         set_run_font(nation_label_run, "Calibri", Pt(11), bold=True)
 
         nation_value = payment_cell.add_paragraph()
-        nation_value_run = nation_value.add_run(data.payment_detracciones_account or "-")
+        nation_value_run = nation_value.add_run(data.company_config.payment_detracciones_account or "-")
         set_run_font(nation_value_run, "Calibri", Pt(11), bold=False)
 
         total_paragraph = doc.add_paragraph()

@@ -1,0 +1,14 @@
+{
+  "company_id": "jc-services",
+  "company_name": "MULTISERVICIOS Y REPRESENTACIONES J & C E.I.R.L.",
+  "payment_bcp_account": "0011-0202-0100061544",
+  "payment_bcp_cci": "MULTISERVICIOS Y REPRESENTACIONES J & C E.I.R.L.",
+  "payment_detracciones_account": "",
+  "payment_bank_label": "Cuenta en Soles BBVA",
+  "offer_note_primary": "Validez de la oferta: 10 dias",
+  "offer_note_secondary": "Montos incluye instalacion",
+  "workshop_address": "Planta de Trabajo: Jr. Tarapaca S/N, Pilcomayo - Huancayo",
+  "fiscal_address": "Domicilio: Jr. Tarapaca S/N, Pilcomayo - Huancayo",
+  "header_image": "companies/jc-services/header.png",
+  "watermark_image": "companies/jc-services/watermark.png"
+}

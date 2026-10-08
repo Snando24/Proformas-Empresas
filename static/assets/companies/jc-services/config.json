@@ -1,0 +1,11 @@
+{
+  "company_id": "jc-services",
+  "header_variants": {
+    "pintura": "header_pintura.png",
+    "generales": "header_generales.png"
+  },
+  "watermark_variants": {
+    "proforma": "watermark_general.png",
+    "pintura": "watermark_pintura.png"
+  }
+}

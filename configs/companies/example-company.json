@@ -1,0 +1,14 @@
+{
+  "company_id": "example-company",
+  "company_name": "EXAMPLE COMPANY S.A.C.",
+  "payment_bcp_account": "0011-XXXX-XXXX",
+  "payment_bcp_cci": "EXAMPLE COMPANY S.A.C.",
+  "payment_detracciones_account": "",
+  "payment_bank_label": "Cuenta Corriente BCP",
+  "offer_note_primary": "Validez de la oferta: 15 dias",
+  "offer_note_secondary": "Precios sin IGV",
+  "workshop_address": "Av. Principal 123, Ciudad",
+  "fiscal_address": "Calle Legal 456, Ciudad",
+  "header_image": "companies/example-company/header.png",
+  "watermark_image": "companies/example-company/watermark.png"
+}

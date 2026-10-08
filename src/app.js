@@ -25,15 +25,49 @@ function getTodayIsoDate() {
   return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
 }
 
-const defaultPaymentDetails = Object.freeze({
-  show_payment_details: true,
-  payment_bcp_account: "0011-0202-0100061544",
-  payment_bcp_cci: "MULTISERVICIOS Y REPRESENTACIONES J & C E.I.R.L.",
-  payment_detracciones_account: "",
-});
+// Global configuration loaded from API
+let currentCompanyConfig = null;
+let currentCompanyId = "jc-services";
+
+async function loadCompanyConfig(companyId = "jc-services") {
+  try {
+    const response = await fetch(`/api/config?company_id=${encodeURIComponent(companyId)}`);
+    if (!response.ok) throw new Error(`Failed to load config for ${companyId}`);
+    currentCompanyConfig = await response.json();
+    currentCompanyId = companyId;
+    console.log(`✓ Loaded config for company: ${currentCompanyConfig.company_name}`);
+    return currentCompanyConfig;
+  } catch (error) {
+    console.error("Error loading company config:", error);
+    // Fall back to defaults if API fails
+    return getDefaultConfig();
+  }
+}
+
+function getDefaultConfig() {
+  return {
+    company_id: "jc-services",
+    company_name: "MULTISERVICIOS Y REPRESENTACIONES J & C E.I.R.L.",
+    payment_bcp_account: "0011-0202-0100061544",
+    payment_bcp_cci: "MULTISERVICIOS Y REPRESENTACIONES J & C E.I.R.L.",
+    payment_detracciones_account: "",
+    payment_bank_label: "Cuenta en Soles BBVA",
+    offer_note_primary: "Validez de la oferta: 10 dias",
+    offer_note_secondary: "Montos incluye instalacion",
+    workshop_address: "Planta de Trabajo: Jr. Tarapaca S/N, Pilcomayo - Huancayo",
+    fiscal_address: "Domicilio: Jr. Tarapaca S/N, Pilcomayo - Huancayo",
+  };
+}
 
 function createDefaultPaymentDetails() {
-  return { ...defaultPaymentDetails };
+  if (!currentCompanyConfig) return {};
+  return {
+    show_payment_details: true,
+    payment_bcp_account: currentCompanyConfig.payment_bcp_account,
+    payment_bcp_cci: currentCompanyConfig.payment_bcp_cci,
+    payment_detracciones_account: currentCompanyConfig.payment_detracciones_account,
+    company_id: currentCompanyId,
+  };
 }
 
 function createEmptyPayload() {
@@ -64,11 +98,6 @@ const longDateFormatter = new Intl.DateTimeFormat("es-PE", {
   year: "numeric",
 });
 const PREVIEW_MIN_ITEM_ROWS = 8;
-const PAYMENT_BANK_LABEL = "Cuenta en Soles BBVA";
-const OFFER_NOTE_PRIMARY = "Validez de la oferta: 10 dias";
-const OFFER_NOTE_SECONDARY = "Montos incluye instalacion";
-const WORKSHOP_ADDRESS = "Planta de Trabajo: Jr. Tarapaca S/N, Pilcomayo - Huancayo";
-const FISCAL_ADDRESS = "Domicilio: Jr. Tarapaca S/N, Pilcomayo - Huancayo";
 
 const form = document.getElementById("proforma-form");
 const itemsList = document.getElementById("items-list");
@@ -87,7 +116,7 @@ const currentRecordLabel = document.getElementById("current-record-label");
 const saveStatusMessage = document.getElementById("save-status-message");
 const historyFilterButtons = [...document.querySelectorAll("[data-history-filter]")];
 
-const PROFORMA_HISTORY_STORAGE_KEY = "jc-proformas-history-v2";
+const PROFORMA_HISTORY_STORAGE_KEY = "proformas-history-v2";
 const historyDateTimeFormatter = new Intl.DateTimeFormat("es-PE", {
   dateStyle: "short",
   timeStyle: "short",
@@ -1253,8 +1282,9 @@ function isShareCancelled(error) {
 }
 
 function getPaymentDetailRows(payload) {
+  const label = currentCompanyConfig?.payment_bank_label || "Cuenta Bancaria";
   return {
-    primaryLine: `${PAYMENT_BANK_LABEL}: ${payload.payment_bcp_account || "-"} | ${payload.payment_bcp_cci || "-"}`,
+    primaryLine: `${label}: ${payload.payment_bcp_account || "-"} | ${payload.payment_bcp_cci || "-"}`,
   };
 }
 
@@ -1378,8 +1408,8 @@ async function buildPdfBlob(payload) {
     doc.text("OBSERVACIONES", 46, notesY + 14);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.8);
-    doc.text(OFFER_NOTE_PRIMARY, 46, notesY + 34);
-    doc.text(OFFER_NOTE_SECONDARY, 46, notesY + 49, {
+    doc.text(currentCompanyConfig?.offer_note_primary || "", 46, notesY + 34);
+    doc.text(currentCompanyConfig?.offer_note_secondary || "", 46, notesY + 49, {
       maxWidth: notesWidth - 24,
     });
 
@@ -1410,7 +1440,8 @@ async function buildPdfBlob(payload) {
     });
 
     if (payload.show_payment_details) {
-      const paymentLine = `${PAYMENT_BANK_LABEL}: ${payload.payment_bcp_account || "-"} | ${payload.payment_bcp_cci || "-"}`;
+      const label = currentCompanyConfig?.payment_bank_label || "Cuenta Bancaria";
+      const paymentLine = `${label}: ${payload.payment_bcp_account || "-"} | ${payload.payment_bcp_cci || "-"}`;
       const paymentLines = doc.splitTextToSize(paymentLine, pageWidth - 68);
       let paymentY = pageHeight - 44 - ((paymentLines.length - 1) * 7);
       doc.setFont("helvetica", "normal");
@@ -1425,8 +1456,8 @@ async function buildPdfBlob(payload) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     doc.setTextColor(47, 70, 103);
-    doc.text(WORKSHOP_ADDRESS, pageWidth / 2, pageHeight - 20, { align: "center" });
-    doc.text(FISCAL_ADDRESS, pageWidth / 2, pageHeight - 8, { align: "center" });
+    doc.text(currentCompanyConfig?.workshop_address || "", pageWidth / 2, pageHeight - 20, { align: "center" });
+    doc.text(currentCompanyConfig?.fiscal_address || "", pageWidth / 2, pageHeight - 8, { align: "center" });
     doc.setTextColor(18, 48, 86);
   };
 
@@ -1795,11 +1826,11 @@ async function buildDocxBlob(payload) {
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
                   spacing: { before: 180, after: 40 },
-                  children: [docxText(WORKSHOP_ADDRESS, { bold: true, size: 18 })],
+                  children: [docxText(currentCompanyConfig?.workshop_address || "", { bold: true, size: 18 })],
                 }),
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
-                  children: [docxText(FISCAL_ADDRESS, { bold: true, size: 18 })],
+                  children: [docxText(currentCompanyConfig?.fiscal_address || "", { bold: true, size: 18 })],
                 }),
               ]
             : [
@@ -1814,11 +1845,11 @@ async function buildDocxBlob(payload) {
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
                   spacing: { before: 180, after: 40 },
-                  children: [docxText(WORKSHOP_ADDRESS, { bold: true, size: 18 })],
+                  children: [docxText(currentCompanyConfig?.workshop_address || "", { bold: true, size: 18 })],
                 }),
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
-                  children: [docxText(FISCAL_ADDRESS, { bold: true, size: 18 })],
+                  children: [docxText(currentCompanyConfig?.fiscal_address || "", { bold: true, size: 18 })],
                 }),
               ]),
         ],
@@ -1918,6 +1949,18 @@ window.addEventListener("load", syncPreviewScale);
 
 fillForm(createEmptyPayload());
 setHistoryFilter(currentHistoryFilter);
+
+// Load company configuration on app startup
+(async () => {
+  try {
+    currentCompanyConfig = await loadCompanyConfig(currentCompanyId);
+    fillForm(createEmptyPayload());
+  } catch (error) {
+    console.error("Failed to load company config, using defaults:", error);
+    currentCompanyConfig = getDefaultConfig();
+    fillForm(createEmptyPayload());
+  }
+})();
 
 if (!isNativeCapacitorPlatform() && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {

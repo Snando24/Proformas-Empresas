@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Company Configuration Schema",
+  "description": "Schema for company configurations in the Proformas-Empresas application",
+  "type": "object",
+  "required": [
+    "company_id",
+    "company_name",
+    "payment_bcp_account",
+    "payment_bcp_cci",
+    "payment_bank_label",
+    "offer_note_primary",
+    "offer_note_secondary",
+    "workshop_address",
+    "fiscal_address"
+  ],
+  "properties": {
+    "company_id": {
+      "type": "string",
+      "description": "Unique identifier for the company (e.g., 'jc-services')",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "company_name": {
+      "type": "string",
+      "description": "Full legal name of the company"
+    },
+    "payment_bcp_account": {
+      "type": "string",
+      "description": "BCP account number for payments"
+    },
+    "payment_bcp_cci": {
+      "type": "string",
+      "description": "CCI (Código de Cuenta Interbancaria) for BCP account"
+    },
+    "payment_detracciones_account": {
+      "type": "string",
+      "description": "Account for detracciones (optional)"
+    },
+    "payment_bank_label": {
+      "type": "string",
+      "description": "Label for bank account display (e.g., 'Cuenta en Soles BBVA')"
+    },
+    "offer_note_primary": {
+      "type": "string",
+      "description": "Primary offer validity note (e.g., 'Validez de la oferta: 10 dias')"
+    },
+    "offer_note_secondary": {
+      "type": "string",
+      "description": "Secondary offer note (e.g., 'Montos incluye instalacion')"
+    },
+    "workshop_address": {
+      "type": "string",
+      "description": "Workshop/production address"
+    },
+    "fiscal_address": {
+      "type": "string",
+      "description": "Fiscal/legal address"
+    },
+    "header_image": {
+      "type": ["string", "null"],
+      "description": "Path to header image asset (relative to static/assets/)"
+    },
+    "watermark_image": {
+      "type": ["string", "null"],
+      "description": "Path to watermark image asset (relative to static/assets/)"
+    }
+  },
+  "additionalProperties": false
+}

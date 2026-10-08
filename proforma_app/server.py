@@ -4,15 +4,30 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from mimetypes import guess_type
 from pathlib import Path
+from urllib.parse import urlparse, parse_qs
 import json
 import socket
-from urllib.parse import urlparse
 
+from .company_config import CompanyConfig
 from .document_engine import ProformaData, build_docx, build_pdf
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = ROOT_DIR / "static"
+CONFIG_DIR = ROOT_DIR / "configs" / "companies"
+
+
+def _get_available_companies() -> list[str]:
+    """Get list of available company IDs from configs directory."""
+    if not CONFIG_DIR.exists():
+        return []
+    
+    company_ids = []
+    for config_file in CONFIG_DIR.glob("*.json"):
+        if config_file.name != "schema.json":
+            company_ids.append(config_file.stem)
+    
+    return sorted(company_ids)
 
 
 class ProformaRequestHandler(BaseHTTPRequestHandler):
@@ -20,6 +35,7 @@ class ProformaRequestHandler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         request_path = urlparse(self.path).path
+        query_params = parse_qs(urlparse(self.path).query)
 
         if request_path in {"/", "/index.html"}:
             self._serve_file(STATIC_DIR / "index.html")
@@ -31,6 +47,24 @@ class ProformaRequestHandler(BaseHTTPRequestHandler):
 
         if request_path.endswith("/service-worker.js"):
             self._serve_file(STATIC_DIR / "service-worker.js")
+            return
+
+        if request_path == "/api/companies":
+            companies = _get_available_companies()
+            self._send_json({"companies": companies})
+            return
+
+        if request_path == "/api/config":
+            company_id = query_params.get("company_id", ["jc-services"])[0].strip().lower()
+            try:
+                config_path = CONFIG_DIR / f"{company_id}.json"
+                config = CompanyConfig.from_json_file(config_path)
+                self._send_json(config.to_dict())
+            except FileNotFoundError:
+                self._send_json(
+                    {"error": f"Configuración no encontrada: {company_id}"},
+                    status=HTTPStatus.NOT_FOUND
+                )
             return
 
         if request_path.startswith("/static/"):
@@ -57,6 +91,7 @@ class ProformaRequestHandler(BaseHTTPRequestHandler):
         try:
             payload = self._read_json_body()
             data = ProformaData.from_payload(payload)
+            
             if request_path.endswith("/pdf"):
                 output_path = build_pdf(data)
                 content_type = "application/pdf"
@@ -145,7 +180,9 @@ def run_server(host: str = "127.0.0.1", port: int = 8000) -> None:
     server = create_server(host=host, port=port)
     active_port = server.server_address[1]
     local_ip = discover_local_ip()
+    companies = _get_available_companies()
     print("Servidor listo para la app de proformas.")
     print(f"Escritorio: http://{host}:{active_port}")
     print(f"Móvil en la misma red: http://{local_ip}:{active_port}")
+    print(f"Empresas disponibles: {', '.join(companies)}")
     server.serve_forever()

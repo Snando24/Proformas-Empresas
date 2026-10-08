@@ -1,7 +1,7 @@
 {
-  "name": "JC-PROFORMAS",
-  "short_name": "JC-PROFORMAS",
-  "description": "JC-PROFORMAS para crear proformas en PDF y Word desde el dispositivo.",
+  "name": "Proformas",
+  "short_name": "Proformas",
+  "description": "Generador de proformas en PDF y Word. Configurable por empresa.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

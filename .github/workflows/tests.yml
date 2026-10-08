@@ -1,0 +1,153 @@
+name: Run Tests and Generate Coverage Reports
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: [3.9, "3.10", "3.11"]
+        node-version: [16.x, 18.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    # Python setup and testing
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov pytest-mock
+    
+    - name: Run Python tests
+      run: |
+        pytest tests/unit tests/integration \
+          --cov=proforma_app \
+          --cov-report=xml \
+          --cov-report=html \
+          --cov-report=term-missing \
+          -v
+    
+    - name: Upload Python coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: python
+        name: codecov-python
+        fail_ci_if_error: false
+    
+    # Node.js setup and testing
+    - name: Set up Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install JavaScript dependencies
+      run: npm install
+    
+    - name: Run JavaScript tests
+      run: |
+        npm run test:js:cov
+    
+    - name: Upload JavaScript coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        flags: javascript
+        name: codecov-javascript
+        fail_ci_if_error: false
+    
+    # Quality checks
+    - name: Check Python code quality
+      run: |
+        pip install pylint
+        pylint proforma_app/ --exit-zero || true
+      continue-on-error: true
+    
+    - name: Run JavaScript linter
+      run: |
+        npm install --save-dev eslint
+        npx eslint src/ --fix || true
+      continue-on-error: true
+    
+    # Coverage summary
+    - name: Generate coverage summary
+      run: |
+        echo "## Test Coverage Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Python Coverage" >> $GITHUB_STEP_SUMMARY
+        tail -20 htmlcov/index.html | grep -oP 'total.*?%' | head -1 >> $GITHUB_STEP_SUMMARY || echo "See coverage report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### JavaScript Coverage" >> $GITHUB_STEP_SUMMARY
+        echo "See coverage report" >> $GITHUB_STEP_SUMMARY
+      continue-on-error: true
+    
+    # Artifact uploads
+    - name: Upload coverage reports as artifacts
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: coverage-reports-${{ matrix.python-version }}-${{ matrix.node-version }}
+        path: |
+          htmlcov/
+          coverage/
+        retention-days: 30
+
+  # Separate job for test results summary
+  test-summary:
+    needs: test
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Check test results
+      run: |
+        if [ "${{ needs.test.result }}" = "success" ]; then
+          echo "? All tests passed!"
+          exit 0
+        else
+          echo "? Some tests failed"
+          exit 1
+        fi
+      continue-on-error: true
+
+  # Optional: Create a comment on PR with results
+  comment-on-pr:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Comment PR with test results
+      uses: actions/github-script@v6
+      if: always()
+      with:
+        script: |
+          const testResult = '${{ needs.test.result }}';
+          const status = testResult === 'success' ? '? PASSED' : '? FAILED';
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `## Test Results ${status}\n\nRun: [View Details](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})`
+          });

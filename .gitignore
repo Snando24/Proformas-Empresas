@@ -1,18 +1,103 @@
-node_modules
-# Herramientas locales
-.tools/
- 
-# Builds
+# ============================================================
+# DEPENDENCIAS
+# ============================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm/
+
+# ============================================================
+# PYTHON - CACHE Y COMPILADOS
+# ============================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
 build/
+dist/
+htmlcov/
+
+# ============================================================
+# TESTS Y COVERAGE
+# ============================================================
+.pytest_cache/
+.coverage
+coverage.xml
+.nyc_output/
+jest-coverage/
+
+# ============================================================
+# ARCHIVOS TEMPORALES Y GENERADOS
+# ============================================================
+tmp/
+output/
+PDF_MODIFICADO*.pdf
+*.tmp
+*.log
+*.bak
+
+# ============================================================
+# CONFIGURACIÓN LOCAL Y SECRETOS
+# ============================================================
+.env
+.env.local
+.env.*.local
+.env.production.local
+
+# ============================================================
+# BUILD TOOLS Y GRADLE
+# ============================================================
 target/
 out/
 .gradle/
- 
-# IDE
+android/.gradle/
+android/app/build/
+*.gradle.bak
+gradle-app.setting
+
+# ============================================================
+# IDE Y EDITORES
+# ============================================================
 .idea/
 *.iml
 .vscode/
- 
-# Sistema
+.vscode/settings.json
+.vscode/launch.json
+.vscode/extensions.json
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+.eslintcache
+
+# ============================================================
+# NODEJS
+# ============================================================
+.node_repl_history
+node_modules/.cache/
+
+# ============================================================
+# SISTEMA OPERATIVO
+# ============================================================
 .DS_Store
+.AppleDouble
+.LSOverride
 Thumbs.db
+desktop.ini
+ehthumbs.db
+
+# ============================================================
+# HERRAMIENTAS LOCALES
+# ============================================================
+.tools/
+
+# ============================================================
+# CAPACITOR / ANDROID
+# ============================================================
+capacitor-plugin-log.json
