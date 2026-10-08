@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#eef2f8" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="JC-PROFORMAS" />
+    <title>JC-PROFORMAS</title>
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="assets/icon-192.png" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="panel form-panel">
+        <div class="panel-header">
+          <div class="brand-chip">JC-PROFORMAS</div>
+          <p class="eyebrow">Formato renovado inspirado en cotizacion corporativa</p>
+          <h1>Genera proformas con una presentacion mas ejecutiva</h1>
+          <p class="subtitle">
+            La logica se mantiene igual. Solo cambiamos la forma en que se presenta la
+            informacion para que el documento luzca mas comercial y ordenado.
+          </p>
+          <div class="hero-art" aria-hidden="true">
+            <div class="hero-art-copy">
+              <span>Proformas comerciales personalizadas</span>
+              <strong>Diseno de salida con jerarquia comercial clara</strong>
+            </div>
+          </div>
+        </div>
+
+        <form id="proforma-form">
+          <section class="selector-stack">
+            <section class="doc-type compact-doc-type">
+              <span>Tipo de documento</span>
+              <label><input type="radio" name="document_kind" value="proforma" checked /> Proforma</label>
+              <label><input type="radio" name="document_kind" value="contrato" /> Contrato</label>
+            </section>
+
+            <section class="doc-type compact-doc-type">
+              <span>Total</span>
+              <label><input type="radio" name="tax_mode" value="sin_igv" checked /> Sin IGV</label>
+              <label><input type="radio" name="tax_mode" value="con_igv" /> Con IGV</label>
+            </section>
+
+            <section class="doc-type compact-doc-type watermark-type">
+              <span>Marca de agua</span>
+              <label><input type="radio" name="watermark_kind" value="proforma" checked /> Proforma</label>
+              <label><input type="radio" name="watermark_kind" value="pintura" /> Proforma Pintura</label>
+            </section>
+
+            <section class="doc-type compact-doc-type header-type">
+              <span>Encabezado</span>
+              <label><input type="radio" name="header_kind" value="pintura" /> Pintura</label>
+              <label><input type="radio" name="header_kind" value="generales" checked /> Generales</label>
+            </section>
+          </section>
+
+          <section class="section-grid">
+            <label>
+              Cliente
+              <input type="text" name="customer_name" placeholder="Nombre del cliente" />
+            </label>
+            <label>
+              Fecha
+              <input type="date" name="issue_date" />
+            </label>
+            <label>
+              Telefono
+              <input type="text" name="phone" placeholder="921786182" />
+            </label>
+            <label>
+              RUC
+              <input type="text" name="ruc" placeholder="10200758132" />
+            </label>
+          </section>
+
+          <label class="full">
+            Descripcion general
+            <textarea
+              name="summary"
+              rows="3"
+              placeholder="Ejemplo: Alargado de chasis, el trabajo se realizara en 6 dias habiles."
+            ></textarea>
+          </label>
+
+          <div class="items-header">
+            <h2>Items</h2>
+          </div>
+
+          <div id="items-list" class="items-list"></div>
+          <div class="inline-add-action">
+            <button type="button" class="inline-add-button" id="add-item">+ Agregar otro item</button>
+          </div>
+
+          <div class="items-header advances-header">
+            <h2>Adelantos / A cuenta</h2>
+          </div>
+
+          <div id="advance-payments-list" class="advance-payments-list"></div>
+          <div class="inline-add-action">
+            <button type="button" class="inline-add-button" id="add-advance-payment">+ Agregar otro adelanto</button>
+          </div>
+
+          <section class="section-grid">
+            <div class="total-box">
+              <span>Total calculado</span>
+              <strong id="live-total">0.00</strong>
+            </div>
+          </section>
+
+          <div class="items-header payment-section-header">
+            <h2>Datos para el pago</h2>
+          </div>
+
+          <section class="doc-type compact-doc-type payment-toggle">
+            <span>Pie opcional</span>
+            <label>
+              <input type="checkbox" name="show_payment_details" />
+              Mostrar bloque de cuentas al pie de la proforma
+            </label>
+          </section>
+
+          <section id="payment-details-fields" class="section-grid payment-section-grid" hidden>
+            <div class="payment-reference-card payment-grid-span">
+              <div class="payment-reference-column">
+                <strong>Cuenta bancaria de referencia</strong>
+                <p>Cuenta en Soles BBVA: 0011-0202-0100061544</p>
+                <p>MULTISERVICIOS Y REPRESENTACIONES J &amp; C E.I.R.L.</p>
+              </div>
+            </div>
+          </section>
+
+          <div class="actions">
+            <button type="button" id="import-pdf" class="secondary-button">Importar PDF</button>
+            <button type="button" id="save-proforma" class="secondary-button">Guardar en historial</button>
+            <button type="button" id="download-docx" class="secondary-button">Descargar Word</button>
+            <button type="button" id="download-pdf" class="primary-button">Descargar PDF</button>
+          </div>
+
+          <input type="file" id="import-pdf-input" accept="application/pdf" hidden />
+
+          <section class="history-panel">
+            <div class="items-header history-header">
+              <h2>Base de proformas</h2>
+              <button type="button" class="ghost-button" id="new-proforma">Nueva proforma</button>
+            </div>
+
+            <p class="history-description">
+              Guarda las proformas generadas para volver a revisarlas o editarlas cuando lo necesites.
+            </p>
+
+            <div class="save-status-card">
+              <strong id="current-record-label">Nueva proforma</strong>
+              <span id="save-status-message">Las proformas guardadas se conservaran en este dispositivo.</span>
+            </div>
+
+            <div class="history-filters" role="tablist" aria-label="Categorias de proformas guardadas">
+              <button
+                type="button"
+                class="history-filter is-active"
+                id="filter-generales"
+                data-history-filter="generales"
+                role="tab"
+                aria-selected="true"
+              >
+                Proformas Generales
+              </button>
+              <button
+                type="button"
+                class="history-filter"
+                id="filter-pintura"
+                data-history-filter="pintura"
+                role="tab"
+                aria-selected="false"
+              >
+                Proformas Especiales
+              </button>
+            </div>
+
+            <div id="history-list" class="history-list"></div>
+            <p id="history-empty" class="history-empty">Todavia no hay proformas guardadas en esta categoria.</p>
+          </section>
+        </form>
+      </aside>
+
+      <main class="panel preview-panel">
+        <div class="preview-header">
+          <div class="preview-badge">Vista previa</div>
+          <p class="eyebrow">Nueva estructura documental</p>
+          <p class="preview-note">
+            La maqueta replica un formato mas corporativo: encabezado fuerte, bloque de cliente claro,
+            tabla tecnica y cuadro de totales compacto.
+          </p>
+        </div>
+
+        <div class="paper-stage" id="preview-stage">
+            <div class="paper-scale" id="preview-scale">
+              <div class="paper" id="preview-paper">
+                <div class="paper-header"></div>
+
+                <div class="paper-body">
+                <h2 class="document-title" id="preview-document-title">DESCRIPCION DEL SERVICIO</h2>
+
+                <section class="document-meta">
+                  <div class="document-meta-line">
+                    <span id="preview-doc-number-label">Nro. Cotizacion</span>
+                    <strong id="preview-doc-number">CTZ-0000</strong>
+                  </div>
+                  <div class="document-meta-line document-meta-date">
+                    <strong id="preview-doc-date-long"></strong>
+                  </div>
+                </section>
+
+                <section class="recipient-card">
+                  <p class="recipient-label">Sres.</p>
+                  <p class="recipient-name" id="preview-customer-name"></p>
+                  <p class="recipient-extra" id="preview-customer-extra"></p>
+                </section>
+
+                <section class="preview-items">
+                  <div class="preview-items-header">
+                    <strong>ITEM</strong>
+                    <strong>DESCRIPCIÓN</strong>
+                    <strong>CANT.</strong>
+                    <strong class="preview-header-multiline"><span>PRECIO</span><span>UNIT</span></strong>
+                    <strong>Desc.</strong>
+                    <strong>TOTAL</strong>
+                  </div>
+                  <div id="preview-items-body" class="preview-items-body"></div>
+                </section>
+
+                <section class="advance-section" id="preview-advance-section">
+                  <div class="section-tag">Adelantos registrados</div>
+                  <div class="advance-lines" id="preview-advance-lines"></div>
+                </section>
+
+                <section class="document-summary">
+                  <div class="offer-notes">
+                    <p>Validez de la oferta: 10 dias</p>
+                    <p>Montos incluye instalacion</p>
+                  </div>
+
+                  <div class="totals-card">
+                    <div class="totals-row">
+                      <span id="preview-taxable-label">Valor venta</span>
+                      <strong id="preview-taxable-total">0.00</strong>
+                    </div>
+                    <div class="totals-row">
+                      <span id="preview-tax-label">IGV</span>
+                      <strong id="preview-tax-amount">0.00</strong>
+                    </div>
+                    <div class="totals-row totals-row-emphasis" id="preview-total-row">
+                      <span id="preview-total-label">TOTAL</span>
+                      <strong id="preview-total">0.00</strong>
+                    </div>
+                    <p class="totals-note" id="preview-total-note">Monto expresado en soles.</p>
+                  </div>
+                </section>
+
+                <section class="preview-payment-footer" id="preview-payment-footer" hidden>
+                  <div class="payment-bar">
+                    <span>Cuenta en Soles BBVA: <b id="preview-payment-bcp-account"></b> | <b id="preview-payment-bcp-cci"></b></span>
+                  </div>
+                </section>
+
+                <footer class="paper-footer">
+                  <p>Planta de Trabajo: Jr. Tarapaca S/N, Pilcomayo - Huancayo</p>
+                  <p>Domicilio: Jr. Tarapaca S/N, Pilcomayo - Huancayo</p>
+                </footer>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <script src="polyfills.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

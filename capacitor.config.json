@@ -1,0 +1,6 @@
+{
+  "appId": "com.tractotec.proformas",
+  "appName": "JC-PROFORMAS",
+  "webDir": "static",
+  "bundledWebRuntime": false
+}

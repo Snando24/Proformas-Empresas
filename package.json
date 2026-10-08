@@ -1,0 +1,18 @@
+{
+  "scripts": {
+    "build:web": "node build-web.mjs",
+    "android:sync": "npx cap sync android",
+    "android:open": "npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/filesystem": "^8.1.2",
+    "@capacitor/share": "^8.0.1",
+    "docx": "^9.7.1",
+    "esbuild": "^0.28.1",
+    "jspdf": "^4.2.1",
+    "pdfjs-dist": "^6.1.200"
+  }
+}
